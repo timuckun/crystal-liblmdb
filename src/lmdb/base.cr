@@ -13,11 +13,6 @@ module Lmdb
       # anything other than this is potentially an exception
       @success = (result == LibLmdb::MDB_SUCCESS)
 
-      # not found is not an error
-      if !@success && result != LibLmdb::MDB_NOTFOUND
-        check_result result
-      end
-
       if result != 0
         errmsg = String.new(LibLmdb.mdb_strerror(result))
       end

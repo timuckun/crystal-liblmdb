@@ -50,6 +50,7 @@ module Lmdb
       @state = State::Open
       @dupes_allowed = @db.dupes_allowed?
       @integer_keys = @db.flags.integer_key?
+      @key_class = @integer_keys ? UInt64 : String
       @success = true
     end
 
@@ -82,14 +83,12 @@ module Lmdb
     end
 
     private def check_key(key)
-      if !key.nil?
         if key.is_a?(String)
           raise "This database only supports integer keys" if @integer_keys
         else
           raise "This database only support string keys" unless @integer_keys
         end
       end
-    end
 
     # ##/**@brief Retrieve by cursor.
     #  *
@@ -108,9 +107,8 @@ module Lmdb
     def get_op(key : Lmdb::KeyTypes,
                data : Lmdb::ValTypes,
                operation = LibLmdb::CursorOp::None,
-               key_class : Lmdb::KeyClasses = String,
                val_class : Lmdb::ValClasses = String)
-      check_key key
+     check_key key
 
       if !@dupes_allowed && DUPE_OPS.includes?(operation)
         raise "This operation is only supported on databases which support duplicate keys"
@@ -122,8 +120,11 @@ module Lmdb
       data_ptr = data_val.to_ptr
 
       result = LibLmdb.mdb_cursor_get(@handle, key_ptr, data_ptr, operation.to_u64)
+
       check_result result
-      return_key = key_val.to(key_class)
+
+      return_key = key_val.to(@key_class)
+
       return_val = if result == LibLmdb::MDB_NOTFOUND
                      nil
                    else
@@ -136,60 +137,60 @@ module Lmdb
     end
 
     #  Move to the first key in the database Returns false result if database is empty
-    def first(key_class : Lmdb::KeyClasses = String, val_class : Lmdb::ValClasses = String)
-      get_op nil, nil, LibLmdb::CursorOp::MDB_FIRST, key_class, val_class
+    def first( val_class : Lmdb::ValClasses = String)
+      get_op nil, nil, LibLmdb::CursorOp::MDB_FIRST,  val_class
     end
 
     # Move to the last key in the database, returning True on success
     # or False if the database is empty.
-    def last(key_class : Lmdb::KeyClasses = String, val_class : Lmdb::ValClasses = String)
-      get_op nil, nil, LibLmdb::CursorOp::MDB_LAST, key_class, val_class
+    def last( val_class : Lmdb::ValClasses = String)
+      get_op nil, nil, LibLmdb::CursorOp::MDB_LAST,  val_class
     end
 
-    def next(key_class : Lmdb::KeyClasses = String, val_class : Lmdb::ValClasses = String)
-      get_op nil, nil, LibLmdb::CursorOp::MDB_NEXT, key_class, val_class
+    def next( val_class : Lmdb::ValClasses = String)
+      get_op nil, nil, LibLmdb::CursorOp::MDB_NEXT,  val_class
     end
 
-    def prev(key_class : Lmdb::KeyClasses = String, val_class : Lmdb::ValClasses = String)
-      get_op nil, nil, LibLmdb::CursorOp::MDB_PREV, key_class, val_class
+    def prev( val_class : Lmdb::ValClasses = String)
+      get_op nil, nil, LibLmdb::CursorOp::MDB_PREV,  val_class
     end
 
     # Dup movement methods. These methods rely on the key in the current record
 
-    def first_dup(key_class : Lmdb::KeyClasses = String, val_class : Lmdb::ValClasses = String)
-      get_op nil, nil, LibLmdb::CursorOp::MDB_FIRST_DUP, key_class, val_class
+    def first_dup(val_class : Lmdb::ValClasses = String)
+      get_op nil, nil, LibLmdb::CursorOp::MDB_FIRST_DUP,  val_class
     end
 
-    def last_dup(key_class : Lmdb::KeyClasses = String, val_class : Lmdb::ValClasses = String)
-      get_op nil, nil, LibLmdb::CursorOp::MDB_LAST_DUP, key_class, val_class
+    def last_dup(val_class : Lmdb::ValClasses = String)
+      get_op nil, nil, LibLmdb::CursorOp::MDB_LAST_DUP, val_class
     end
 
-    def next_dup(key_class : Lmdb::KeyClasses = String, val_class : Lmdb::ValClasses = String)
-      get_op nil, nil, LibLmdb::CursorOp::MDB_NEXT_DUP, key_class, val_class
+    def next_dup( val_class : Lmdb::ValClasses = String)
+      get_op nil, nil, LibLmdb::CursorOp::MDB_NEXT_DUP,  val_class
     end
 
-    def prev_dup(key_class : Lmdb::KeyClasses = String, val_class : Lmdb::ValClasses = String)
-      get_op nil, nil, LibLmdb::CursorOp::MDB_PREV_DUP, key_class, val_class
+    def prev_dup( val_class : Lmdb::ValClasses = String)
+      get_op nil, nil, LibLmdb::CursorOp::MDB_PREV_DUP,  val_class
     end
 
     # Move to the next highest key value
-    def next_no_dup(key_class : Lmdb::KeyClasses = String, val_class : Lmdb::ValClasses = String)
-      get_op nil, nil, LibLmdb::CursorOp::MDB_NEXT_NODUP, key_class, val_class
+    def next_no_dup( val_class : Lmdb::ValClasses = String)
+      get_op nil, nil, LibLmdb::CursorOp::MDB_NEXT_NODUP,  val_class
     end
 
-    def prev_no_dup(key_class : Lmdb::KeyClasses = String, val_class : Lmdb::ValClasses = String)
-      get_op nil, nil, LibLmdb::CursorOp::MDB_PREV_NODUP, key_class, val_class
+    def prev_no_dup( val_class : Lmdb::ValClasses = String)
+      get_op nil, nil, LibLmdb::CursorOp::MDB_PREV_NODUP, val_class
     end
 
     # GET_BOTH_RANGE # #/**< position at key nearest data. Only for #MDB_DUPSORT */
     # SET_RANGE      # #/**< Position at first key greater than or equal to specified key. */
 
-    def find(key : Lmdb::KeyTypes, val_class : Lmdb::ValClasses = String)
-      get_op key, nil, LibLmdb::CursorOp::MDB_SET_KEY, val_class
+    def find(key : Lmdb::KeyTypes,  val_class : Lmdb::ValClasses = String)
+      get_op key, nil, LibLmdb::CursorOp::MDB_SET_KEY,val_class
     end
 
-    def find(key : Lmdb::KeyTypes, val : Lmdb::ValTypes, key_class : Lmdb::ValClasses = String, val_class : Lmdb::ValClasses = String)
-      get_op key, val, LibLmdb::CursorOp::MDB_GET_BOTH, key_class, val_class
+    def find(key : Lmdb::KeyTypes, val : Lmdb::ValTypes,  val_class : Lmdb::ValClasses = String)
+      get_op key, val, LibLmdb::CursorOp::MDB_GET_BOTH,  val_class
     end
 
     # Position at first key greater than or equal to specified key.
@@ -200,19 +201,21 @@ module Lmdb
     # This version of the call seeks the value that's greater or equal to the one given
     # FOR THE EXACT KEY.  It only looks for the records with the key specified.
     # Only for #MDB_DUPSORT */
-    def find_ge(key : Lmdb::KeyTypes, val : Lmdb::ValTypes, key_class : Lmdb::ValClasses = String, val_class : Lmdb::ValClasses = String)
-      get_op key, val, LibLmdb::CursorOp::MDB_GET_BOTH_RANGE, key_class, val_class
+    def find_ge(key : Lmdb::KeyTypes, val : Lmdb::ValTypes,  val_class : Lmdb::ValClasses = String)
+      get_op key, val, LibLmdb::CursorOp::MDB_GET_BOTH_RANGE, val_class
     end
 
-    def current(key_class : Lmdb::ValClasses = String, val_class : Lmdb::ValClasses = String)
-      get_op nil, nil, LibLmdb::CursorOp::MDB_GET_CURRENT, key_class, val_class
+    def current( val_class : Lmdb::ValClasses = String)
+      get_op nil, nil, LibLmdb::CursorOp::MDB_GET_CURRENT, val_class
     end
 
     def put(key : Lmdb::KeyTypes, val : Lmdb::ValTypes, put_flags = Lmdb::Flags::Put::None)
       check_key key
       key_val = MdbVal.new(key)
       data_val = MdbVal.new(val)
-      check_result LibLmdb.mdb_cursor_put(@handle, key_val.to_ptr, data_val.to_ptr,put_flags)
+      key_ptr=key_val.to_ptr
+      data_ptr=data_val.to_ptr
+      check_result LibLmdb.mdb_cursor_put(@handle, key_ptr, data_ptr,put_flags.to_u64)
       @success ? : {@success, key, val} : {@success, nil, nil}
     end
 
