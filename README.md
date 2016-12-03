@@ -1,6 +1,7 @@
 # lmdb
 
-Crystal bindings for the LMDB database by Symas.  It supports most functions of the library.
+Crystal bindings for the LMDB database by Symas.  At this stage it's not considered stable. Not for production use
+
 
 
 ## Installation
