@@ -1,0 +1,7 @@
+name: lmdb
+version: 0.0.0-alpha
+
+authors:
+  - Tim Uckun <tim@uckun.com>
+
+license: MIT
