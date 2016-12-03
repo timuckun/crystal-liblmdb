@@ -1,6 +1,7 @@
 # lmdb
 
-TODO: Write a description here
+Crystal bindings for the LMDB database by Symas.  It supports most functions of the library.
+
 
 ## Installation
 
@@ -10,7 +11,7 @@ Add this to your application's `shard.yml`:
 ```yaml
 dependencies:
   lmdb:
-    github: timuckun/lmdb
+    github: timuckun/crystal-liblmdb
 ```
 
 
@@ -27,11 +28,11 @@ transaction_spec and cursor_spec.
 
 ## Development
 
-TODO: Pull requests are always welcome
+Pull requests are always welcome
 
 ## Contributing
 
-1. Fork it ( https://github.com/[your-github-name]/lmdb/fork )
+1. Fork it ( https://github.com/timuckun/crystal-liblmdb/fork )
 2. Create your feature branch (git checkout -b my-new-feature)
 3. Commit your changes (git commit -am 'Add some feature')
 4. Push to the branch (git push origin my-new-feature)
