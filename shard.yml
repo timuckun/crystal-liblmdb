@@ -1,5 +1,5 @@
 name: lmdb
-version: 0.0.0-alpha
+version: 0.0.1
 
 authors:
   - Tim Uckun <tim@uckun.com>
