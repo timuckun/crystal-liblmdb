@@ -77,361 +77,147 @@ module Lmdb
       @state = State::Closed
     end
 
-    def to_key(x : String)
-      make_mdb_val(x.to_unsafe.as(Void*), x.bytesize.to_u64)
+    # for keys this is just a no brainer
+    def key_to_mdb_val(x : Lmdb::KeyTypes)
+      make_mdb_val x
     end
 
-    def to_key(x : T) # forall
-      size = sizeof(typeof(i))
-      pointer = Pointer.malloc(size, x).as(Void*)
+    def data_to_mdb_val(x : Lmdb::ValTypes)
+      # we don't encode type information into uninitialized pointers
+      unless x.nil?
+        class_id = get_class_id(x.class)
+        val = make_mdb_val(x, extra_bytes: 1)
+        # let's put the class id in the pointer data (last byte)
+        val.mv_data.as(Pointer(UInt8))[val.mv_size] = class_id
+        val.mv_size = val.mv_size + 1
+        val
+      else
+        make_mdb_val(x)
+      end
+    end
+
+    def make_mdb_val(x : Lmdb::ValTypes, extra_bytes = 0)
+      # The extra byte is for type information metadata.
+      # Can't be used for keys because they can integers
+      # and they all have to be uniform size
+
+      case x # .class
+      when String
+        size = x.bytesize.to_u64
+        ptr = Pointer(UInt8).malloc(size + extra_bytes)
+        # the extra byte is left empty
+        ptr.copy_from(x.to_unsafe, size)
+        pointer = ptr.as(Void*)
+      when Int32, UInt32, Float32, Int64, UInt64, Float64
+        size = sizeof(typeof(x))
+        pointer = Pointer.malloc(size + extra_bytes, x).as(Void*)
+      when Nil
+        size = 0
+        # ptr = Pointer(UInt8).malloc(size + extra_bytes).as(Void*)
+        pointer = uninitialized Pointer(Void)
+      else
+        raise "#{x} is not a valid type"
+      end
+
       make_mdb_val(pointer, size)
     end
 
-    def from_key(val : LibLmdb::MDB_val)
-    end
-
-    # def make_val(x : Lmdb::ValTypes) : LibLmdb::MDB_val
-    #   val = case x # .class
-    #         when String
-    #           size = x.bytesize.to_u64
-    #           pointer = x.to_unsafe.as(Void*)
-    #           make_val(pointer, size)
-    #         when Int32, UInt32, Float32
-    #           size = 4_u64
-    #           pointer = Pointer.malloc(4, x).as(Void*)
-    #           make_val(pointer, size)
-    #         when Int64, UInt64, Float64
-    #           size = 8_u64
-    #           pointer = Pointer.malloc(8, x).as(Void*)
-    #           make_val(pointer, size)
-    #         when Nil
-    #           xx = uninitialized LibLmdb::MDB_val
-    #         else
-    #           xx = uninitialized LibLmdb::MDB_val
-    #         end
-    #   val
-    # end
-
     def make_mdb_val(ptr : Pointer(Void), size : Int)
       LibLmdb::MDB_val.new(
-        mv_size: size,
+        mv_size: size.to_u64,
         mv_data: ptr
       )
     end
 
-    # def convert_val(val : LibLmdb::MDB_val, klass : Lmdb::ValClasses)
-    #   pointer = val.mv_data
-    #   size = val.mv_size
-    #
-    #   case klass
-    #   when String.class
-    #     cptr = pointer.as(Pointer(UInt8))
-    #     String.new(cptr, size)
-    #   when Int32.class
-    #     pointer.as(Pointer(Int32)).value
-    #   when Int64.class
-    #     pointer.as(Pointer(Int64)).value
-    #   when UInt32.class
-    #     pointer.as(Pointer(UInt32)).value
-    #   when UInt64.class
-    #     pointer.as(Pointer(UInt64)).value
-    #   when Float32.class
-    #     pointer.as(Pointer(Float32)).value
-    #   when Float64.class
-    #     pointer.as(Pointer(Float64)).value
-    #   when Nil.class
-    #     nil
-    #   else
-    #     raise "#{klass} is not a supported type"
-    #   end
-    # end
+    def get_class_id(klass : Lmdb::ValClasses) : UInt8
+      case klass
+      when String.class
+        0_u8
+      when Int32.class
+        1_u8
+      when Int64.class
+        2_u8
+      when UInt32.class
+        3_u8
+      when UInt64.class
+        4_u8
+      when Float32.class
+        5_u8
+      when Float64.class
+        6_u8
+      when Nil.class
+        7_u8
+      else
+        raise "#{klass} is not a supported type"
+      end
+    end
+
+    def lookup_class(id : Int)
+      case id
+      when 0
+        String
+      when 1
+        Int32
+      when 2
+        Int64
+      when 3
+        UInt32
+      when 4
+        UInt64
+      when 5
+        Float32
+      when 6
+        Float64
+      when 7
+        Nil
+      else
+        puts "#{id} is not a supported type"
+      end
+    end
+
+    # basically just an alias but keeps the api consistent
+    def mdb_val_to_key(val : LibLmdb::MDB_val, klass)
+      mdb_val_to_data(val, klass)
+    end
+
+    def mdb_val_to_data(val : LibLmdb::MDB_val)
+      return nil if val.mv_size == 0 && val.mv_data.value.nil?
+      class_id = val.mv_data.as(Pointer(UInt8))[val.mv_size - 1]
+      klass = lookup_class(class_id)
+      val.mv_size = val.mv_size - 1
+      mdb_val_to_data(val, klass)
+
+      # pp klass = lookup_class(class_id)
+    end
+
+    def mdb_val_to_data(val : LibLmdb::MDB_val, klass)
+      pointer = val.mv_data
+      size = val.mv_size
+      case klass
+      when String.class
+        cptr = pointer.as(Pointer(UInt8))
+        String.new(cptr, size)
+      when Int32.class
+        pointer.as(Pointer(Int32)).value
+      when Int64.class
+        pointer.as(Pointer(Int64)).value
+      when UInt32.class
+        pointer.as(Pointer(UInt32)).value
+      when UInt64.class
+        pointer.as(Pointer(UInt64)).value
+      when Float32.class
+        pointer.as(Pointer(Float32)).value
+      when Float64.class
+        pointer.as(Pointer(Float64)).value
+      when Nil.class
+        nil
+      else
+        raise "#{klass} is not a supported type"
+      end
+    end
 
     def finalize
       close if @state.open?
     end
   end
 end
-#
-# raise ReadonlyException.new(errmsg)
-#
-# #   #An attempt was made to modify a read-only database.#
-# #  when LibLmdb::MDB_NAME = 'EACCES'
-#
-# raise InvalidParameterException.new(errmsg)
-#
-# #   #An invalid parameter was specified.#
-# #  when LibLmdb::MDB_NAME = 'EINVAL'
-#
-# raise LockException.new(errmsg)
-#
-# #   #The environment was locked by another process.#
-# #  when LibLmdb::MDB_NAME = 'EAGAIN'
-#
-# raise MemoryException.new(errmsg)
-#
-# #   #Out of memory.#
-# #  when LibLmdb::MDB_NAME = 'ENOMEM'
-#
-# raise DiskException.new(errmsg)
-#
-# raise KeyExistsException.new(errmsg)
-#
-# #   #Key/data pair already exists.#
-# #  when LibLmdb::MDB_NAME = 'MDB_KEYEXIST'
-#
-# raise NotFoundException.new(errmsg)
-#
-# #   #No matching key/data pair found.
-# #
-# #   Normally py-lmdb indicates a missing key by returning ``None``, or a
-# #   user-supplied default value, however LMDB may return this error where
-# #   py-lmdb does not know to convert it into a non-exceptional return.
-# #   #
-# #  when LibLmdb::MDB_NAME = 'MDB_NOTFOUND'
-#
-# raise PageNotFoundException.new(errmsg)
-#
-# #   #Request page not found.#
-# #  when LibLmdb::MDB_NAME = 'MDB_PAGE_NOTFOUND'
-#
-# raise CorruptedException.new(errmsg)
-#
-# #   #Located page was of the wrong type.#
-# #  when LibLmdb::MDB_NAME = 'MDB_CORRUPTED'
-#
-# raise PanicException.new(errmsg)
-#
-# #   #Update of meta page failed.#
-# #  when LibLmdb::MDB_NAME = 'MDB_PANIC'
-#
-# raise VersionMismatchException.new(errmsg)
-#
-# #   #Database environment version mismatch.#
-# #  when LibLmdb::MDB_NAME = 'MDB_VERSION_MISMATCH'
-#
-# raise InvalidException.new(errmsg)
-#
-# #   #File is not anwhen LibLmdb::MDB file.#
-# #  when LibLmdb::MDB_NAME = 'MDB_INVALID'
-#
-# raise MapFullException.new(errmsg)
-#
-# #   #Environment map_size= limit reached.#
-# #  when LibLmdb::MDB_NAME = 'MDB_MAP_FULL'
-# #  when LibLmdb::MDB_HINT = 'Please use a larger Environment(map_size=) parameter'
-#
-# raise DbsFullException.new(errmsg)
-#
-# #   #Environment max_dbs= limit reached.#
-# #  when LibLmdb::MDB_NAME = 'MDB_DBS_FULL'
-# #  when LibLmdb::MDB_HINT = 'Please use a larger Environment(max_dbs=) parameter'
-#
-# raise ReadersFullException.new(errmsg)
-#
-# #   #Environment max_readers= limit reached.#
-# #  when LibLmdb::MDB_NAME = 'MDB_READERS_FULL'
-# #  when LibLmdb::MDB_HINT = 'Please use a larger Environment(max_readers=) parameter'
-#
-# raise TlsFullException.new(errmsg)
-#
-# #   #Thread-local storage keys full - too many environments open.#
-# #  when LibLmdb::MDB_NAME = 'MDB_TLS_FULL'
-#
-# raise TxnFullException.new(errmsg)
-#
-# #   #Transaciton has too many dirty pages - transaction too big.#
-# #  when LibLmdb::MDB_NAME = 'MDB_TXN_FULL'
-# #  when LibLmdb::MDB_HINT = 'Please do less work within your transaction'
-#
-# raise CursorFullException.new(errmsg)
-#
-# #   #Internal error - cursor stack limit reached.#
-# #  when LibLmdb::MDB_NAME = 'MDB_CURSOR_FULL'
-#
-# raise PageFullException.new(errmsg)
-#
-# #   #Internal error - page has no more space.#
-# #  when LibLmdb::MDB_NAME = 'MDB_PAGE_FULL'
-#
-# raise MapResizedException.new(errmsg)
-#
-# #   #Database contents grew beyond environment map_size=.#
-# #  when LibLmdb::MDB_NAME = 'MDB_MAP_RESIZED'
-#
-# raise IncompatibleException.new(errmsg)
-#
-# #   #Operation and DB incompatible, or DB flags changed.#
-# #  when LibLmdb::MDB_NAME = 'MDB_INCOMPATIBLE'
-#
-# raise BadRslotException.new(errmsg)
-#
-# #   #Invalid reuse of reader locktable slot.#
-# #  when LibLmdb::MDB_NAME = 'MDB_BAD_RSLOT'
-#
-# raise BadDbiException.new(errmsg)
-#
-# #   #The specified DBI was changed unexpectedly.#
-# #  when LibLmdb::MDB_NAME = 'MDB_BAD_DBI'
-#
-# raise BadTxnException.new(errmsg)
-#
-# #   #Transaction cannot recover - it must be aborted.#
-# #  when LibLmdb::MDB_NAME = 'MDB_BAD_TXN'
-#
-# raise BadValsizeException.new(errmsg)
-#
-# #   #Too big key/data, key is empty, or wrong DUPFIXED size.#
-# #  when LibLmdb::MDB_NAME = 'MDB_BAD_VALSIZE'
-#
-# raise ReadonlyException.new(errmsg)
-#
-# #   #An attempt was made to modify a read-only database.#
-# #  when LibLmdb::MDB_NAME = 'EACCES'
-#
-# raise InvalidParameterException.new(errmsg)
-#
-# #   #An invalid parameter was specified.#
-# #  when LibLmdb::MDB_NAME = 'EINVAL'
-#
-# raise LockException.new(errmsg)
-#
-# #   #The environment was locked by another process.#
-# #  when LibLmdb::MDB_NAME = 'EAGAIN'
-#
-# raise MemoryException.new(errmsg)
-#
-# #   #Out of memory.#
-# #  when LibLmdb::MDB_NAME = 'ENOMEM'
-#
-# raise DiskException.new(errmsg)
-#
-# raise KeyExistsException.new(errmsg)
-#
-# #   #Key/data pair already exists.#
-# #  when LibLmdb::MDB_NAME = 'MDB_KEYEXIST'
-#
-# raise NotFoundException.new(errmsg)
-#
-# #   #No matching key/data pair found.
-# #
-# #   Normally py-lmdb indicates a missing key by returning ``None``, or a
-# #   user-supplied default value, however LMDB may return this error where
-# #   py-lmdb does not know to convert it into a non-exceptional return.
-# #   #
-# #  when LibLmdb::MDB_NAME = 'MDB_NOTFOUND'
-#
-# raise PageNotFoundException.new(errmsg)
-#
-# #   #Request page not found.#
-# #  when LibLmdb::MDB_NAME = 'MDB_PAGE_NOTFOUND'
-#
-# raise CorruptedException.new(errmsg)
-#
-# #   #Located page was of the wrong type.#
-# #  when LibLmdb::MDB_NAME = 'MDB_CORRUPTED'
-#
-# raise PanicException.new(errmsg)
-#
-# #   #Update of meta page failed.#
-# #  when LibLmdb::MDB_NAME = 'MDB_PANIC'
-#
-# raise VersionMismatchException.new(errmsg)
-#
-# #   #Database environment version mismatch.#
-# #  when LibLmdb::MDB_NAME = 'MDB_VERSION_MISMATCH'
-#
-# raise InvalidException.new(errmsg)
-#
-# #   #File is not anwhen LibLmdb::MDB file.#
-# #  when LibLmdb::MDB_NAME = 'MDB_INVALID'
-#
-# raise MapFullException.new(errmsg)
-#
-# #   #Environment map_size= limit reached.#
-# #  when LibLmdb::MDB_NAME = 'MDB_MAP_FULL'
-# #  when LibLmdb::MDB_HINT = 'Please use a larger Environment(map_size=) parameter'
-#
-# raise DbsFullException.new(errmsg)
-#
-# #   #Environment max_dbs= limit reached.#
-# #  when LibLmdb::MDB_NAME = 'MDB_DBS_FULL'
-# #  when LibLmdb::MDB_HINT = 'Please use a larger Environment(max_dbs=) parameter'
-#
-# raise ReadersFullException.new(errmsg)
-#
-# #   #Environment max_readers= limit reached.#
-# #  when LibLmdb::MDB_NAME = 'MDB_READERS_FULL'
-# #  when LibLmdb::MDB_HINT = 'Please use a larger Environment(max_readers=) parameter'
-#
-# raise TlsFullException.new(errmsg)
-#
-# #   #Thread-local storage keys full - too many environments open.#
-# #  when LibLmdb::MDB_NAME = 'MDB_TLS_FULL'
-#
-# raise TxnFullException.new(errmsg)
-#
-# #   #Transaciton has too many dirty pages - transaction too big.#
-# #  when LibLmdb::MDB_NAME = 'MDB_TXN_FULL'
-# #  when LibLmdb::MDB_HINT = 'Please do less work within your transaction'
-#
-# raise CursorFullException.new(errmsg)
-#
-# #   #Internal error - cursor stack limit reached.#
-# #  when LibLmdb::MDB_NAME = 'MDB_CURSOR_FULL'
-#
-# raise PageFullException.new(errmsg)
-#
-# #   #Internal error - page has no more space.#
-# #  when LibLmdb::MDB_NAME = 'MDB_PAGE_FULL'
-#
-# raise MapResizedException.new(errmsg)
-#
-# #   #Database contents grew beyond environment map_size=.#
-# #  when LibLmdb::MDB_NAME = 'MDB_MAP_RESIZED'
-#
-# raise IncompatibleException.new(errmsg)
-#
-# #   #Operation and DB incompatible, or DB flags changed.#
-# #  when LibLmdb::MDB_NAME = 'MDB_INCOMPATIBLE'
-#
-# raise BadRslotException.new(errmsg)
-#
-# #   #Invalid reuse of reader locktable slot.#
-# #  when LibLmdb::MDB_NAME = 'MDB_BAD_RSLOT'
-#
-# raise BadDbiException.new(errmsg)
-#
-# #   #The specified DBI was changed unexpectedly.#
-# #  when LibLmdb::MDB_NAME = 'MDB_BAD_DBI'
-#
-# raise BadTxnException.new(errmsg)
-#
-# #   #Transaction cannot recover - it must be aborted.#
-# #  when LibLmdb::MDB_NAME = 'MDB_BAD_TXN'
-#
-# raise BadValsizeException.new(errmsg)
-#
-# #   #Too big key/data, key is empty, or wrong DUPFIXED size.#
-# #  when LibLmdb::MDB_NAME = 'MDB_BAD_VALSIZE'
-#
-# raise ReadonlyException.new(errmsg)
-#
-# #   #An attempt was made to modify a read-only database.#
-# #  when LibLmdb::MDB_NAME = 'EACCES'
-#
-# raise InvalidParameterException.new(errmsg)
-#
-# #   #An invalid parameter was specified.#
-# #  when LibLmdb::MDB_NAME = 'EINVAL'
-#
-# raise LockException.new(errmsg)
-#
-# #   #The environment was locked by another process.#
-# #  when LibLmdb::MDB_NAME = 'EAGAIN'
-#
-# raise MemoryException.new(errmsg)
-#
-# #   #Out of memory.#
-# #  when LibLmdb::MDB_NAME = 'ENOMEM'
-#
-# raise DiskException.new(errmsg)

@@ -12,10 +12,12 @@ describe Lmdb::Transaction do
     # use different types of values
     txn.put(db, "String", "String")
     txn.get(db, "String").should eq "String"
+
+    # Non string data values are transparently handled in and out
     txn.put(db, "Int", 1)
-    txn.get(db, "Int", Int32).should eq 1
+    txn.get(db, "Int").should eq 1
     txn.put(db, "Float", 1.5)
-    txn.get(db, "Float", Float64).should eq 1.5
+    txn.get(db, "Float").should eq 1.5
     txn.get(db, "Non existent key").should be_nil
     txn.commit
     env.close

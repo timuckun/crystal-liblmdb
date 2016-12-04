@@ -1137,7 +1137,7 @@ lib LibLmdb
   #  */
 
   # ---- int  mdb_del(MDB_txn *txn, MDB_dbi dbi, MDB_val *key, MDB_val *data);
-  fun mdb_del(txn : MDB_txn, dbi : MDB_dbi, key : MDB_val*, data : MDB_val* | Nil) : Int
+  fun mdb_del(txn : MDB_txn, dbi : MDB_dbi, key : MDB_val*, data : MDB_val*) : Int
   # ##/**@brief Create a cursor handle.
   #  *
   #  * A cursor is associated with a specific transaction and database.

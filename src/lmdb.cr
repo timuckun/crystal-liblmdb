@@ -1,9 +1,9 @@
 # require "./lmdb/*.cr"
 
 require "./lmdb/lib_lmdb.cr"
-require "./lmdb/void_pointer.cr"
+# require "./lmdb/void_pointer.cr"
 require "./lmdb/exceptions.cr"
-require "./lmdb/mdb_val.cr"
+# require "./lmdb/mdb_val.cr"
 require "./lmdb/flags.cr"
 require "./lmdb/base.cr"
 require "./lmdb/cursor.cr"

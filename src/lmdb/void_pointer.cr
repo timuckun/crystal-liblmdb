@@ -17,15 +17,21 @@ module Lmdb
         @pointer = x.to_unsafe.as(Void*)
         # I don't think this is supposed to be freed.
         @free = false
-      when Int32, UInt32, Float32
-        @size = 4_u64
-        @pointer = Pointer.malloc(4, x).as(Void*)
-      when Int64, UInt64, Float64
-        @size = 8_u64
-        @pointer = Pointer.malloc(8, x).as(Void*)
-      else
+      when Int32, UInt32, Float32, Int64, UInt64, Float64
+        @size = sizeof(typeof(x))
+        @pointer = Pointer.malloc(@size, x).as(Void*)
+        # when Int32, UInt32, Float32
+        #   @size = 4_u64
+        #
+        #   @pointer = Pointer.malloc(4, x).as(Void*)
+        # when Int64, UInt64, Float64
+        #   @size = 8_u64
+        #   @pointer = Pointer.malloc(8, x).as(Void*)
+      when Nil
         @size = 0
         @pointer = uninitialized Pointer(Void)
+      else
+        raise "#{x} is not a valid type"
       end
     end
 

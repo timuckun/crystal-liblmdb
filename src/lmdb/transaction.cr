@@ -119,16 +119,16 @@ module Lmdb
     #  * any modification attempts will cause a SIGSEGV.
     #  * @note Values returned from the database are valid only until a
     #  * subsequent update operation, or the end of the transaction.
-    def get(db : Lmdb::Database, key : Lmdb::KeyTypes, val_class : Lmdb::ValClasses = String) : Lmdb::ValTypes
-      key_val = MdbVal.new(key)
-      # key_val = make_val(key)
-      # key_ptr
-      result = LibLmdb.mdb_get(@handle, db.handle, key_val.to_ptr, out data)
+    def get(db : Lmdb::Database, key : Lmdb::KeyTypes) : Lmdb::ValTypes
+      key_val = key_to_mdb_val(key) # MdbVal.new(key)
+      key_ptr = pointerof(key_val)
+      result = LibLmdb.mdb_get(@handle, db.handle, key_ptr, out data)
       check_result result
-      data_val = MdbVal.new(data)
+      # data_val = MdbVal.new(data)
 
       val = if @success
-              data_val.to(val_class)
+              # data_val.to(val_class)
+              mdb_val_to_data(data)
             else
               nil
             end
@@ -141,10 +141,10 @@ module Lmdb
     #  * if duplicates are disallowed, or adding a duplicate data item if
     #  * duplicates are allowed (#MDB_DUPSORT).
     def put(db : Lmdb::Database, key : Lmdb::KeyTypes, data : Lmdb::ValTypes, flags = Lmdb::Flags::Put::None)
-      key_val = MdbVal.new(key)
-      data_val = MdbVal.new(data)
+      key_val = key_to_mdb_val(key)    # MdbVal.new(key)
+      data_val = data_to_mdb_val(data) # MdbVal.new(data)
       flags_val = flags.to_u32
-      check_result LibLmdb.mdb_put(@handle, db.handle, key_val.to_ptr, data_val.to_ptr, flags_val)
+      check_result LibLmdb.mdb_put(@handle, db.handle, pointerof(key_val), pointerof(data_val), flags_val) # key_val.to_ptr, data_val.to_ptr, flags_val)
       @success
     end
 
@@ -161,14 +161,11 @@ module Lmdb
     #  * pair is not in the database.
     #  */
     def del(db : Lmdb::Database, key : String | Int, data : String | Nil = nil)
-      key_val = MdbVal.new(key)
-      data_ptr = if data.nil?
-                   nil
-                 else
-                   d = MdbVal.new(key)
-                   d.to_ptr
-                 end
-      check_result LibLmdb.mdb_del(@handle, db.handle, key_val.to_ptr, data_ptr)
+      key_val = key_to_mdb_val(key) # MdbVal.new(key)
+      key_ptr = pointerof(key_val)
+      data_val = data_to_mdb_val(data) # MdbVal.new(key)
+      data_ptr = pointerof(data_val)
+      check_result LibLmdb.mdb_del(@handle, db.handle, key_ptr, data_ptr)
       @success
     end
 

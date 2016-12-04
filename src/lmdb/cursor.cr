@@ -9,34 +9,6 @@ module Lmdb
       LibLmdb::CursorOp::MDB_GET_BOTH,
       LibLmdb::CursorOp::MDB_GET_BOTH_RANGE,
     ]
-    # enum Ops : UInt32
-    #   FIRST     # #/**< Position at first key/data item */
-    #   FIRST_DUP # #/**< Position at first data item of current key.
-    #   # Only for #MDB_DUPSORT */
-    #   GET_BOTH       # #/**< Position at key/data pair. Only for #MDB_DUPSORT */
-    #   GET_BOTH_RANGE # #/**< position at key nearest data. Only for #MDB_DUPSORT */
-    #   GET_CURRENT    # #/**< Return key/data at current cursor position */
-    #   GET_MULTIPLE   # #/**< Return key and up to a page of duplicate data items
-    #   # from current cursor position. Move cursor to prepare
-    #   # for #MDB_NEXT_MULTIPLE. Only for #MDB_DUPFIXED */
-    #   LAST     # #/**< Position at last key/data item */
-    #   LAST_DUP # #/**< Position at last data item of current key.
-    #   #  Only for #MDB_DUPSORT */
-    #   NEXT     # #/**< Position at next data item */
-    #   NEXT_DUP # #/**< Position at next data item of current key.
-    #   #  Only for #MDB_DUPSORT */
-    #   NEXT_MULTIPLE # #/**< Return key and up to a page of duplicate data items
-    #   #  from next cursor position. Move cursor to prepare
-    #   #  for #MDB_NEXT_MULTIPLE. Only for #MDB_DUPFIXED */
-    #   NEXT_NODUP # #/**< Position at first data item of next key */
-    #   PREV       # #/**< Position at previous data item */
-    #   PREV_DUP   # #/**< Position at previous data item of current key.
-    #   # Only for #MDB_DUPSORT */
-    #   PREV_NODUP # #/**< Position at last data item of previous key */
-    #   SET        # #/**< Position at specified key */
-    #   SET_KEY    # #/**< Position at specified key return key + data */
-    #   SET_RANGE  # #/**< Position at first key greater than or equal to specified key. */
-    # end
 
     getter database
     getter transaction
@@ -107,29 +79,31 @@ module Lmdb
 
     def get_op(key : Lmdb::KeyTypes,
                data : Lmdb::ValTypes,
-               operation = LibLmdb::CursorOp::None,
-               val_class : Lmdb::ValClasses = String)
+               operation = LibLmdb::CursorOp::None)
 
 
       if !@dupes_allowed && DUPE_OPS.includes?(operation)
         raise "This operation is only supported on databases which support duplicate keys"
       end
 
-      key_val = MdbVal.new(key)
-      data_val = MdbVal.new(data)
-      key_ptr = key_val.to_ptr
-      data_ptr = data_val.to_ptr
-
+      key_val = key_to_mdb_val(key) #MdbVal.new(key)
+      data_val=data_to_mdb_val(data)
+      #data_val = MdbVal.new(data)
+      key_ptr = pointerof(key_val)# key_val.to_ptr
+      #data_ptr = data_val.to_ptr
+data_ptr=pointerof(data_val)
       result = LibLmdb.mdb_cursor_get(@handle, key_ptr, data_ptr, operation.to_u64)
 
       check_result result
 
-      return_key = key_val.to(@key_class)
+
+      return_key = mdb_val_to_key(key_val, @key_class) #key_val.to(@key_class)
 
       return_val = if result == LibLmdb::MDB_NOTFOUND
                      nil
                    else
-                     data_val.to(val_class)
+                     mdb_val_to_data(data_val)
+                     #data_val.to(val_class)
                    end
       {@success, return_key, return_val}
 
@@ -138,86 +112,86 @@ module Lmdb
     end
 
     #  Move to the first key in the database Returns false result if database is empty
-    def first( val_class : Lmdb::ValClasses = String)
-      get_op nil, nil, LibLmdb::CursorOp::MDB_FIRST,  val_class
+    def first()
+      get_op nil, nil, LibLmdb::CursorOp::MDB_FIRST
     end
 
     # Move to the last key in the database, returning True on success
     # or False if the database is empty.
-    def last(val_class : Lmdb::ValClasses = String)
-      get_op nil, nil, LibLmdb::CursorOp::MDB_LAST,  val_class
+    def last()
+      get_op nil, nil, LibLmdb::CursorOp::MDB_LAST
     end
 
-    def next( val_class : Lmdb::ValClasses = String)
-      get_op nil, nil, LibLmdb::CursorOp::MDB_NEXT,  val_class
+    def next( )
+      get_op nil, nil, LibLmdb::CursorOp::MDB_NEXT
     end
 
-    def prev( val_class : Lmdb::ValClasses = String)
-      get_op nil, nil, LibLmdb::CursorOp::MDB_PREV,  val_class
+    def prev( )
+      get_op nil, nil, LibLmdb::CursorOp::MDB_PREV
     end
 
     # Dup movement methods. These methods rely on the key in the current record
 
-    def first_dup(val_class : Lmdb::ValClasses = String)
-      get_op nil, nil, LibLmdb::CursorOp::MDB_FIRST_DUP,  val_class
+    def first_dup()
+      get_op nil, nil, LibLmdb::CursorOp::MDB_FIRST_DUP
     end
 
-    def last_dup(val_class : Lmdb::ValClasses = String)
-      get_op nil, nil, LibLmdb::CursorOp::MDB_LAST_DUP, val_class
+    def last_dup()
+      get_op nil, nil, LibLmdb::CursorOp::MDB_LAST_DUP
     end
 
-    def next_dup( val_class : Lmdb::ValClasses = String)
-      get_op nil, nil, LibLmdb::CursorOp::MDB_NEXT_DUP,  val_class
+    def next_dup( )
+      get_op nil, nil, LibLmdb::CursorOp::MDB_NEXT_DUP
     end
 
-    def prev_dup( val_class : Lmdb::ValClasses = String)
-      get_op nil, nil, LibLmdb::CursorOp::MDB_PREV_DUP,  val_class
+    def prev_dup()
+      get_op nil, nil, LibLmdb::CursorOp::MDB_PREV_DUP
     end
 
     # Move to the next highest key value
-    def next_no_dup( val_class : Lmdb::ValClasses = String)
-      get_op nil, nil, LibLmdb::CursorOp::MDB_NEXT_NODUP,  val_class
+    def next_no_dup( )
+      get_op nil, nil, LibLmdb::CursorOp::MDB_NEXT_NODUP
     end
 
-    def prev_no_dup( val_class : Lmdb::ValClasses = String)
-      get_op nil, nil, LibLmdb::CursorOp::MDB_PREV_NODUP, val_class
+    def prev_no_dup( )
+      get_op nil, nil, LibLmdb::CursorOp::MDB_PREV_NODUP
     end
 
     # GET_BOTH_RANGE # #/**< position at key nearest data. Only for #MDB_DUPSORT */
     # SET_RANGE      # #/**< Position at first key greater than or equal to specified key. */
 
-    def find(key : Lmdb::KeyTypes,  val_class : Lmdb::ValClasses = String)
-      get_op key, nil, LibLmdb::CursorOp::MDB_SET_KEY,val_class
+    def find(key : Lmdb::KeyTypes)
+      get_op key, nil, LibLmdb::CursorOp::MDB_SET_KEY
     end
 
-    def find(key : Lmdb::KeyTypes, val : Lmdb::ValTypes,  val_class : Lmdb::ValClasses = String)
-      get_op key, val, LibLmdb::CursorOp::MDB_GET_BOTH,  val_class
+    def find(key : Lmdb::KeyTypes, val : Lmdb::ValTypes, )
+      get_op key, val, LibLmdb::CursorOp::MDB_GET_BOTH
     end
 
     # Position at first key greater than or equal to specified key.
-    def find_ge(key : Lmdb::KeyTypes, val_class : Lmdb::ValClasses = String)
-      get_op key, nil, LibLmdb::CursorOp::MDB_SET_RANGE, val_class
+    def find_ge(key : Lmdb::KeyTypes)
+      get_op key, nil, LibLmdb::CursorOp::MDB_SET_RANGE
     end
 
     # This version of the call seeks the value that's greater or equal to the one given
     # FOR THE EXACT KEY.  It only looks for the records with the key specified.
     # Only for #MDB_DUPSORT */
-    def find_ge(key : Lmdb::KeyTypes, val : Lmdb::ValTypes,  val_class : Lmdb::ValClasses = String)
-      get_op key, val, LibLmdb::CursorOp::MDB_GET_BOTH_RANGE, val_class
+    def find_ge(key : Lmdb::KeyTypes, val : Lmdb::ValTypes)
+      get_op key, val, LibLmdb::CursorOp::MDB_GET_BOTH_RANGE
     end
 
-    def current( val_class : Lmdb::ValClasses = String)
-      get_op nil, nil, LibLmdb::CursorOp::MDB_GET_CURRENT, val_class
+    def current( )
+      get_op nil, nil, LibLmdb::CursorOp::MDB_GET_CURRENT
     end
 
-    def put(key : Lmdb::KeyTypes, val : Lmdb::ValTypes, put_flags = Lmdb::Flags::Put::None)
+    def put(key : Lmdb::KeyTypes, data : Lmdb::ValTypes, put_flags = Lmdb::Flags::Put::None)
 
-      key_val = MdbVal.new(key)
-      data_val = MdbVal.new(val)
-      key_ptr=key_val.to_ptr
-      data_ptr=data_val.to_ptr
+      key_val = key_to_mdb_val(key) #MdbVal.new(key)
+      data_val = data_to_mdb_val(data) #MdbVal.new(val)
+      key_ptr=pointerof(key_val) #key_val.to_ptr
+      data_ptr=pointerof(data_val) #data_val.to_ptr
       check_result LibLmdb.mdb_cursor_put(@handle, key_ptr, data_ptr,put_flags.to_u64)
-      @success ? : {@success, key, val} : {@success, nil, nil}
+      @success ? : {@success, key, data} : {@success, nil, nil}
     end
 
    # Delete current key/data pair
