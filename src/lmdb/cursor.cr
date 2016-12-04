@@ -82,13 +82,14 @@ module Lmdb
       result
     end
 
-    private def check_key(key)
-        if key.is_a?(String)
-          raise "This database only supports integer keys" if @integer_keys
-        else
-          raise "This database only support string keys" unless @integer_keys
-        end
-      end
+    # private def check_key(key)
+    #   return if key.nil?
+    #     if key.is_a?(String)
+    #       raise "This database only supports integer keys" if @integer_keys
+    #     else
+    #       raise "This database only support string keys" unless @integer_keys
+    #     end
+    #   end
 
     # ##/**@brief Retrieve by cursor.
     #  *
@@ -108,7 +109,7 @@ module Lmdb
                data : Lmdb::ValTypes,
                operation = LibLmdb::CursorOp::None,
                val_class : Lmdb::ValClasses = String)
-     check_key key
+
 
       if !@dupes_allowed && DUPE_OPS.includes?(operation)
         raise "This operation is only supported on databases which support duplicate keys"
@@ -143,7 +144,7 @@ module Lmdb
 
     # Move to the last key in the database, returning True on success
     # or False if the database is empty.
-    def last( val_class : Lmdb::ValClasses = String)
+    def last(val_class : Lmdb::ValClasses = String)
       get_op nil, nil, LibLmdb::CursorOp::MDB_LAST,  val_class
     end
 
@@ -210,7 +211,7 @@ module Lmdb
     end
 
     def put(key : Lmdb::KeyTypes, val : Lmdb::ValTypes, put_flags = Lmdb::Flags::Put::None)
-      check_key key
+
       key_val = MdbVal.new(key)
       data_val = MdbVal.new(val)
       key_ptr=key_val.to_ptr

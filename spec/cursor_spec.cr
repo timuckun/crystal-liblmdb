@@ -68,8 +68,8 @@ describe Lmdb::Cursor do
       # jump ahead a little
       cur.find("2.2").should eq({true, "2.2", "2.2"})
       # cast the results
-      cur.next(String, Float64).should eq({true, "data:Float", 1.5})
-      cur.next(String, Int32).should eq({true, "data:Integer", 1})
+      cur.next(Float64).should eq({true, "data:Float", 1.5})
+      cur.next(Int32).should eq({true, "data:Integer", 1})
       # points out the importance of knowing your data,
       # We didn't specify a type
       # the code does not know that the record has an integer value so it dumps
@@ -80,7 +80,7 @@ describe Lmdb::Cursor do
       cur.find("1", "1.2").should eq({true, "1", "1.2"})
       cur.find("this key does not exist").should eq({false, "this key does not exist", nil})
 
-      cur.last(String, Int32).should eq({true, "data:Integer", 1})
+      cur.last(Int32).should eq({true, "data:Integer", 1})
       # bouncing at the end without error
       cur.next.should eq({false, "", nil})
       # Finding the first key greater or equal to the specified one
