@@ -1,6 +1,13 @@
 # lmdb
 
-Crystal bindings for the LMDB database by Symas.  At this stage it's not considered stable. Not for production use
+Crystal bindings for the LMDB database by Symas.  It covers most but not all of the library functionality.
+
+TODO:
+
+1. Make better use of read only transactions by reusing them
+2. Write specs for child transactions
+3. Implement callback functions
+4. Enhance the database API to implement more enumerable like functionality
 
 
 
@@ -25,7 +32,7 @@ require "lmdb"
 
 
 Please see the specs for how to use this library, especially
-transaction_spec and cursor_spec.
+transaction_spec and cursor_spec. The database_spec shows how to use it in the simplest form possible
 
 ## Development
 

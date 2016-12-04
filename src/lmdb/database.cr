@@ -83,5 +83,29 @@ module Lmdb
     def empty
       drop(0_i32)
     end
+
+    def [](key)
+      x = nil
+      @env.with_transaction(read_only: true) do |t|
+        x = t.get(self, key)
+      end
+      x
+    end
+
+    def []=(key, data)
+      retval = false
+      @env.with_transaction() do |t|
+        retval = t.put(self, key, data)
+      end
+      retval
+    end
+
+    def del(key)
+      retval = false
+      @env.with_transaction() do |t|
+        retval = t.del(self, key)
+      end
+      retval
+    end
   end
 end
