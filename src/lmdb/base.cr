@@ -77,6 +77,30 @@ module Lmdb
       @state = State::Closed
     end
 
+    def to_key(x)
+      size = nil
+      pointer = uninitialized Pointer(Void)
+      case x # .class
+      when String
+        size = x.bytesize.to_u64
+        pointer = x.to_unsafe.as(Void*)
+      when Int32, UInt32, Float32
+        size = 4_u64
+        pointer = Pointer.malloc(4, x).as(Void*)
+      when Int64, UInt64, Float64
+        size = 8_u64
+        pointer = Pointer.malloc(8, x).as(Void*)
+      end
+      if size.nil?
+        retval = uninitialized LibLmdb::MdbVal
+      else
+        retval = LibLmdb::MDB_val.new(
+          mv_size: size,
+          mv_data: pointer
+        )
+      end
+    end
+
     def make_val(x : Lmdb::ValTypes) : LibLmdb::MDB_val
       val = case x # .class
             when String
@@ -99,7 +123,7 @@ module Lmdb
       val
     end
 
-    def make_val(ptr : Pointer(Void), size : Int)
+    def make_mdb_val(ptr : Pointer(Void), size : Int)
       LibLmdb::MDB_val.new(
         mv_size: size,
         mv_data: ptr
