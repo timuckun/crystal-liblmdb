@@ -49,35 +49,7 @@ module Lmdb
     end
 
     def close
-      # Might have to do a lot here
-      #     def close(self):
-      #         """Close the environment, invalidating any open iterators, cursors, and
-      #         transactions. Repeat calls to :py:meth:`close` have no effect.
-
-      #         Equivalent to `mdb_env_close()
-      #         <http://symas.com/mdb/doc/group__mdb.html#ga4366c43ada8874588b6a62fbda2d1e95>`_
-      #         """
-      #         if self._env:
-      #             if self._deps:
-      #                 while self._deps:
-      #                     self._deps.pop()._invalidate()
-      #             self._deps = None
-
-      #             if self._spare_txns:
-      #                 while self._spare_txns:
-      #                     _lib.mdb_txn_abort(self._spare_txns.pop())
-      #             self._spare_txns = None
-
-      #             if self._dbs:
-      #                 self._dbs.clear()
-      #             self._dbs = None
-      #             self._db = None
-
-      #             _lib.mdb_env_close(self._env)
-      #             self._env = _invalid
       LibLmdb.mdb_env_close(@handle)
-      # LibC.free(@handle)
-      # call super to set state
       @state = State::Closed
     end
 
@@ -86,15 +58,6 @@ module Lmdb
     #  * This may be used to set some @flags in addition to those from
     #  * #mdb_env_open(), or to unset these @flags.  If several threads
     #  * change the @flags at the same time, the result is undefined.
-    #  * @param[in] env An environment handle returned by #mdb_env_create()
-    #  * @param[in] flags The flags to change, bitwise OR'ed together
-    #  * @param[in] onoff A non-zero value sets the flags, zero clears them.
-    #  * @return A non-zero error value on failure and 0 on success. Some possible
-    #  * errors are:
-    #  * <ul>
-    #  *	<li>EINVAL - an invalid parameter was specified.
-    #  * </ul>
-    #  */
     def set_flags(@flags : Lmdb::Flags::Environment, on_or_off = 1)
       check_result LibLmdb.mdb_env_set_flags(@handle, @flags, on_or_off)
     end
@@ -126,7 +89,6 @@ module Lmdb
     #  * It is not cached to reflect the latest true state of the env
     def info
       version_ptr = LibLmdb.mdb_version(out major, out minor, out patch)
-      # # Note: I was not able to free the char pointer
       version = String.new(version_ptr)
       LibLmdb.mdb_env_get_maxreaders(@handle, out max_readers)
       check_result LibLmdb.mdb_env_stat(@handle, out stats)

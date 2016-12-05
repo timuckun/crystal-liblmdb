@@ -33,12 +33,6 @@ module Lmdb
 
     # Returns information about the database
     def info
-      # txn = @env.open_transaction
-      # puts "here"
-      # check_result LibLmdb.mdb_stat(txn.handle, @handle, out stats)
-      # puts "here"
-      # pp stats
-
       stats = uninitialized LibLmdb::MDB_stat
       flags = uninitialized LibLmdb::UInt
 
@@ -56,8 +50,6 @@ module Lmdb
         entries:        stats.ms_entries,        # /**< Number of data items */
         flags:          @flags.to_s,
       }
-      # /**@brief Statistics for a database in the environment */
-
     end
 
     def dupes_allowed?
@@ -73,10 +65,6 @@ module Lmdb
       txn = @env.open_transaction
       check_result LibLmdb.mdb_drop(txn.handle, @handle, delete_mode)
       txn.commit
-      #  @env.with_transaction_handle do |t|
-      #    puts "dropping delete_mode=#{delete_mode}"
-      #    check_result LibLmdb.mdb_drop(t, @handle, delete_mode)
-      #  end
     end
 
     # This empties the database but keeps it in the environment and doesn't close the handle

@@ -54,14 +54,6 @@ module Lmdb
       result
     end
 
-    # private def check_key(key)
-    #   return if key.nil?
-    #     if key.is_a?(String)
-    #       raise "This database only supports integer keys" if @integer_keys
-    #     else
-    #       raise "This database only support string keys" unless @integer_keys
-    #     end
-    #   end
 
     # ##/**@brief Retrieve by cursor.
     #  *
@@ -86,19 +78,14 @@ module Lmdb
         raise "This operation is only supported on databases which support duplicate keys"
       end
 
-      key_val = key_to_mdb_val(key) #MdbVal.new(key)
+      key_val = key_to_mdb_val(key)
       data_val=data_to_mdb_val(data)
-      #data_val = MdbVal.new(data)
-      key_ptr = pointerof(key_val)# key_val.to_ptr
-      #data_ptr = data_val.to_ptr
-data_ptr=pointerof(data_val)
+      key_ptr = pointerof(key_val)
+      data_ptr=pointerof(data_val)
       result = LibLmdb.mdb_cursor_get(@handle, key_ptr, data_ptr, operation.to_u64)
 
       check_result result
-
-
-      return_key = mdb_val_to_key(key_val, @key_class) #key_val.to(@key_class)
-
+      return_key = mdb_val_to_key(key_val, @key_class)
       return_val = if result == LibLmdb::MDB_NOTFOUND
                      nil
                    else
@@ -107,8 +94,6 @@ data_ptr=pointerof(data_val)
                    end
       {@success, return_key, return_val}
 
-      # {result, key_val.to(key_class), data_val.to(val_class)}
-      # {result, nil, nil}
     end
 
     #  Move to the first key in the database Returns false result if database is empty
@@ -157,9 +142,6 @@ data_ptr=pointerof(data_val)
       get_op nil, nil, LibLmdb::CursorOp::MDB_PREV_NODUP
     end
 
-    # GET_BOTH_RANGE # #/**< position at key nearest data. Only for #MDB_DUPSORT */
-    # SET_RANGE      # #/**< Position at first key greater than or equal to specified key. */
-
     def find(key : Lmdb::KeyTypes)
       get_op key, nil, LibLmdb::CursorOp::MDB_SET_KEY
     end
@@ -185,7 +167,6 @@ data_ptr=pointerof(data_val)
     end
 
     def put(key : Lmdb::KeyTypes, data : Lmdb::ValTypes, put_flags = Lmdb::Flags::Put::None)
-
       key_val = key_to_mdb_val(key) #MdbVal.new(key)
       data_val = data_to_mdb_val(data) #MdbVal.new(val)
       key_ptr=pointerof(key_val) #key_val.to_ptr
@@ -217,6 +198,5 @@ data_ptr=pointerof(data_val)
      check_result LibLmdb.mdb_cursor_count(@handle, out count)
      count
    end
-
   end
 end
