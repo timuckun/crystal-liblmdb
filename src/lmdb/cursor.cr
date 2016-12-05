@@ -1,6 +1,5 @@
 module Lmdb
   class Cursor < Base
-
     DUPE_OPS = [
       LibLmdb::CursorOp::MDB_FIRST_DUP,
       LibLmdb::CursorOp::MDB_LAST_DUP,
@@ -54,7 +53,6 @@ module Lmdb
       result
     end
 
-
     # ##/**@brief Retrieve by cursor.
     #  *
     #  * This function retrieves key/data pairs from the database. The address and length
@@ -72,16 +70,14 @@ module Lmdb
     def get_op(key : Lmdb::KeyTypes,
                data : Lmdb::ValTypes,
                operation = LibLmdb::CursorOp::None)
-
-
       if !@dupes_allowed && DUPE_OPS.includes?(operation)
         raise "This operation is only supported on databases which support duplicate keys"
       end
 
       key_val = key_to_mdb_val(key)
-      data_val=data_to_mdb_val(data)
+      data_val = data_to_mdb_val(data)
       key_ptr = pointerof(key_val)
-      data_ptr=pointerof(data_val)
+      data_ptr = pointerof(data_val)
       result = LibLmdb.mdb_cursor_get(@handle, key_ptr, data_ptr, operation.to_u64)
 
       check_result result
@@ -90,55 +86,54 @@ module Lmdb
                      nil
                    else
                      mdb_val_to_data(data_val)
-                     #data_val.to(val_class)
+                     # data_val.to(val_class)
                    end
       {@success, return_key, return_val}
-
     end
 
     #  Move to the first key in the database Returns false result if database is empty
-    def first()
+    def first
       get_op nil, nil, LibLmdb::CursorOp::MDB_FIRST
     end
 
     # Move to the last key in the database, returning True on success
     # or False if the database is empty.
-    def last()
+    def last
       get_op nil, nil, LibLmdb::CursorOp::MDB_LAST
     end
 
-    def next( )
+    def next
       get_op nil, nil, LibLmdb::CursorOp::MDB_NEXT
     end
 
-    def prev( )
+    def prev
       get_op nil, nil, LibLmdb::CursorOp::MDB_PREV
     end
 
     # Dup movement methods. These methods rely on the key in the current record
 
-    def first_dup()
+    def first_dup
       get_op nil, nil, LibLmdb::CursorOp::MDB_FIRST_DUP
     end
 
-    def last_dup()
+    def last_dup
       get_op nil, nil, LibLmdb::CursorOp::MDB_LAST_DUP
     end
 
-    def next_dup( )
+    def next_dup
       get_op nil, nil, LibLmdb::CursorOp::MDB_NEXT_DUP
     end
 
-    def prev_dup()
+    def prev_dup
       get_op nil, nil, LibLmdb::CursorOp::MDB_PREV_DUP
     end
 
     # Move to the next highest key value
-    def next_no_dup( )
+    def next_no_dup
       get_op nil, nil, LibLmdb::CursorOp::MDB_NEXT_NODUP
     end
 
-    def prev_no_dup( )
+    def prev_no_dup
       get_op nil, nil, LibLmdb::CursorOp::MDB_PREV_NODUP
     end
 
@@ -146,7 +141,7 @@ module Lmdb
       get_op key, nil, LibLmdb::CursorOp::MDB_SET_KEY
     end
 
-    def find(key : Lmdb::KeyTypes, val : Lmdb::ValTypes, )
+    def find(key : Lmdb::KeyTypes, val : Lmdb::ValTypes)
       get_op key, val, LibLmdb::CursorOp::MDB_GET_BOTH
     end
 
@@ -162,41 +157,41 @@ module Lmdb
       get_op key, val, LibLmdb::CursorOp::MDB_GET_BOTH_RANGE
     end
 
-    def current( )
+    def current
       get_op nil, nil, LibLmdb::CursorOp::MDB_GET_CURRENT
     end
 
     def put(key : Lmdb::KeyTypes, data : Lmdb::ValTypes, put_flags = Lmdb::Flags::Put::None)
-      key_val = key_to_mdb_val(key) #MdbVal.new(key)
-      data_val = data_to_mdb_val(data) #MdbVal.new(val)
-      key_ptr=pointerof(key_val) #key_val.to_ptr
-      data_ptr=pointerof(data_val) #data_val.to_ptr
-      check_result LibLmdb.mdb_cursor_put(@handle, key_ptr, data_ptr,put_flags.to_u64)
-      @success ? : {@success, key, data} : {@success, nil, nil}
+      key_val = key_to_mdb_val(key)    # MdbVal.new(key)
+      data_val = data_to_mdb_val(data) # MdbVal.new(val)
+      key_ptr = pointerof(key_val)     # key_val.to_ptr
+      data_ptr = pointerof(data_val)   # data_val.to_ptr
+      check_result LibLmdb.mdb_cursor_put(@handle, key_ptr, data_ptr, put_flags.to_u64)
+      @success ? {@success, key, data} : {@success, nil, nil}
     end
 
-   # Delete current key/data pair
-   #  *
-   #  * This function deletes the key/data pair to which the cursor refers.
-   def del
-     check_result LibLmdb.mdb_cursor_del(@handle, 0)
-     @success
-   end
+    # Delete current key/data pair
+    #  *
+    #  * This function deletes the key/data pair to which the cursor refers.
+    def del
+      check_result LibLmdb.mdb_cursor_del(@handle, 0)
+      @success
+    end
 
-   #  *   delete all of the data items for the current key.
-   #  *		This flag may only be specified if the database was opened with #MDB_DUPSORT.
-   def del_all
-     if  !@dupes_allowed
-       raise "Dupes are not allowed in this database use `del` instead"
-     end
+    #  *   delete all of the data items for the current key.
+    #  *		This flag may only be specified if the database was opened with #MDB_DUPSORT.
+    def del_all
+      if !@dupes_allowed
+        raise "Dupes are not allowed in this database use `del` instead"
+      end
 
-     check_result LibLmdb.mdb_cursor_del(@handle, LibLmdb::MDB_NODUPDATA)
-     @success
-   end
+      check_result LibLmdb.mdb_cursor_del(@handle, LibLmdb::MDB_NODUPDATA)
+      @success
+    end
 
-   def count
-     check_result LibLmdb.mdb_cursor_count(@handle, out count)
-     count
-   end
+    def count
+      check_result LibLmdb.mdb_cursor_count(@handle, out count)
+      count
+    end
   end
 end
