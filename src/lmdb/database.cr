@@ -17,7 +17,7 @@ module Lmdb
       #      database can't be shared between threads. Crytal doesn't have threads yet
       #      so not an issue at this time. The mutex api might change
       @handle = uninitialized LibLmdb::MDB_dbi
-      db_name = @name.try(&.to_unsafe) || nil
+      db_name = @name.try(&.to_unsafe) || Pointer(UInt8).null
       flags_value = flags.to_u32
 
       # txn = @env.open_transaction
