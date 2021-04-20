@@ -102,7 +102,7 @@ module Lmdb
       # and they all have to be uniform size
 
       case x # .class
-      when String
+      when String, Bytes
         size = x.bytesize.to_u64
         ptr = Pointer(UInt8).malloc(size + extra_bytes)
         # the extra byte is left empty
