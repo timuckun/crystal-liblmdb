@@ -102,11 +102,16 @@ module Lmdb
       # and they all have to be uniform size
 
       case x # .class
-      when String, Bytes
+      when String
         size = x.bytesize.to_u64
         ptr = Pointer(UInt8).malloc(size + extra_bytes)
         # the extra byte is left empty
         ptr.copy_from(x.to_unsafe, size)
+        pointer = ptr.as(Void*)
+      when Bytes
+        size = x.bytesize.to_u64
+        ptr = Pointer(UInt8).malloc(size+extra_bytes)
+        x.copy_to(ptr,x.size)
         pointer = ptr.as(Void*)
       when Int32, UInt32, Float32, Int64, UInt64, Float64
         size = sizeof(typeof(x))
@@ -147,6 +152,8 @@ module Lmdb
         6_u8
       when Nil.class
         7_u8
+      when Bytes.class
+        8_u8
       else
         raise "#{klass} is not a supported type"
       end
@@ -170,6 +177,8 @@ module Lmdb
         Float64
       when 7
         Nil
+      when 8
+        Bytes
       else
         puts "#{id} is not a supported type"
       end
