@@ -220,6 +220,9 @@ module Lmdb
         pointer.as(Pointer(Float64)).value
       when Nil.class
         nil
+      when Bytes.class
+        cptr = pointer.as(Pointer(UInt8))
+        Bytes.new(cptr,size)
       else
         raise "#{klass} is not a supported type"
       end
