@@ -153,7 +153,7 @@ module Lmdb
 
     def open_transaction(parent_transaction : Lmdb::Transaction | Nil = nil, read_only = @read_only)
       read_write_flag = read_only ? LibLmdb::MDB_RDONLY : 0
-      parent_transaction_handle = parent_transaction.try(&.handle) || nil
+      parent_transaction_handle = parent_transaction.try(&.handle)
       check_result LibLmdb.mdb_txn_begin(@handle, parent_transaction_handle, read_write_flag, out txn)
       Lmdb::Transaction.new(txn, read_only)
     end
